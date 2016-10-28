@@ -27,4 +27,7 @@
 *.exe
 *.out
 *.app
+
+# cqder files
 code/cqder
+code/thiscqder.sh
