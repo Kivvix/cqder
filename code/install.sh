@@ -6,6 +6,7 @@
 
 OMPenable="yes"
 libDir="lib"
+sourceFile="cqder_env.sh"
 
 ######################################################################
 ### tools functions
@@ -47,6 +48,7 @@ fi
 #_____________________________________________________________________
 # usage
 # display information about the install script and exit the process
+# There is no argument
 function usage ()
 {
 	echo -e "
@@ -65,9 +67,15 @@ ${c_bold}DESCRIPTION${c_end}
 	${c_bold}--disable-OMP${c_end}
 		Disable OMP in the compilation (by default it is enable)
 
-	${c_bold}--installLib-path${c_end}=[${c_under}PATH${c_end}]
+	${c_bold}--enable-OMP${c_end}
+		Enable OMP in the compilation (by default it is enable)
+
+	${c_bold}--libraryPath${c_end}=[${c_under}PATH${c_end}]
 		Set the path of the library folder, by default is set to lib
 		in the current folder
+
+	${c_bold}--sourceFile${c_end}=[${c_under}FILE${c_end}]
+		Set the file to source for environment variables of cqder
 "
 
 	exit 418;
@@ -76,7 +84,9 @@ ${c_bold}DESCRIPTION${c_end}
 #_____________________________________________________________________
 # display_exe
 # display information about the current operation and the state at its
-# end. 
+# end.
+# $1 : text to display
+# $2 : command to execute or return's number
 function display_exe ()
 {
 	local test_str="$1"
@@ -122,6 +132,8 @@ function display_exe ()
 # 3 -> err
 # 4 -> yes
 # 5 -> no
+# $1 : text to display
+# $2 : number of information between 0 and 5
 function display_info ()
 {
 	local test_str="$1"
@@ -165,6 +177,7 @@ function display_info ()
 #_____________________________________________________________________
 # test_OMP
 # test if OMP feature is enable
+# There is no argument
 function test_OMP ()
 {
 	function write_OMP_test () {
@@ -185,38 +198,44 @@ function test_OMP ()
 #_____________________________________________________________________
 # compilation
 # make the obj and lib directories, and compile the library with make
+# $1 : (optional) name of library directory (lib by default)
 function compilation ()
 {
+	local lib_dir="lib"
+	if [[ -n "$1" ]]; then
+		lib_dir="$1"
+	fi
+
 	display_info "Begin compilation process" 1
 
 	function __compilation_make_obj_directory () {
 		mkdir -p obj
 	}
 	function __compilation_make_lib_directory () {
-		mkdir -p lib
+		mkdir -p $lib_dir
 	}
 
 	if [ ! -d obj ]; then
 		display_exe "        Make the object directory" __compilation_make_obj_directory
 	fi
-	if [ ! -d lib ]; then
+	if [ ! -d $lib_dir ]; then
 		display_exe "        Make the lib directory" __compilation_make_lib_directory
 	fi
 
-	display_exe "        Compilation the library" make
+	#display_exe "        Compilation the library" make
 }
 
 #_____________________________________________________________________
 # environment_var
 # write the file to source with correct environment variables
+# $1 : (optional) name of file where write environment variables
 function environment_var ()
 {
 	display_info "Prepare environment variables" 1
 
-	local source_file="$1"
-
-	if [[ -z $source_file ]]; then
-		source_file="thiscqder.sh"
+	local source_file="cqder_env.sh"
+	if [[ -n "$1" ]]; then
+		source_file="$1"
 	fi
 
 	function __environment_var_file () {
@@ -251,12 +270,12 @@ fi
 #_____________________________________________________________________
 # display_final_info
 # display information to congratulate at the end of the install process
+# $1 : (optional) name of file where write environment variables
 function display_final_info ()
 {
-	local source_file="$1"
-
-	if [[ -z $source_file ]]; then
-		source_file="thiscqder.sh"
+	local source_file="cqder_env.sh"
+	if [[ -n "$1" ]]; then
+		source_file="$1"
 	fi
 
 	echo -e "
@@ -268,10 +287,24 @@ echo \"source ${PWD}/${source_file}\" >> \$HOME/.$(echo ${SHELL} | awk -F / '{ p
 }
 
 #_____________________________________________________________________
+# install_process
+# call all functions to compile and install cqder library
+# $1 : [yes|no] enable OMP feature
+# $2 : (optional) name of library directory
+# $3 : (optional) name of environment variables file
 function install_process ()
 {
 	local omp="$1"
+
+	local lib_dir="lib"
+	if [[ -n "$2" ]]; then
+		lib_dir="$2"
+	fi
+
 	local source_file="cqder_env.sh"
+	if [[ -n "$3" ]]; then
+		source_file="$3"
+	fi
 
 	if [[ $omp =~ "no" ]]; then
 		display_info "Checking for omp.h" 5
@@ -279,7 +312,7 @@ function install_process ()
 		display_info "Checking for omp.h" 4
 		test_OMP
 	fi
-	compilation
+	compilation $lib_dir
 	environment_var ${source_file}
 	display_final_info ${source_file}
 }
@@ -287,7 +320,7 @@ function install_process ()
 
 
 ######################################################################
-### calls the correct option
+### calls correct options
 ######################################################################
 
 #_____________________________________________________________________
@@ -298,13 +331,17 @@ for arg in "$@"; do
 			usage ;;
 		--disable-OMP )
 			OMPenable="no" ;;
-		--installLib-path=* )
-			libDir="${arg//--InstallLib-path=/}" ;;
+		--enable-OMP )
+			OMPenable="yes" ;;
+		--libraryPath=* )
+			libDir="${arg//--libraryPath=/}" ;;
+		--sourceFile=* )
+			sourceFile="${arg//--sourceFile=/}" ;;
 	esac
 done
 
 # call the complete install procedure
-install_process $OMPenable
+install_process $OMPenable $libDir $sourceFile
 
 
 exit 0
